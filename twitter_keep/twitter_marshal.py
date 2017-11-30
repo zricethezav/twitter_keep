@@ -5,6 +5,7 @@ Github: github.com/zricethezav/twitter_keep
 Description: download and marshal tweets into postgres
 """
 
+# fuck it, just use sqlalchemy https://www.pythoncentral.io/introductory-tutorial-python-sqlalchemy/
 import twitter
 import click
 import settings
@@ -44,15 +45,17 @@ sql_user_insert = """
 sql_tweet_insert = """
         INSERT INTO tweets(
           tweet_id,
-          tweet_text,
+          text,
           created_at,
-          geo_lat,
-          geo_long,
+          lat,
+          long,
           user_id,
           screen_name,
-          profile_image_url,
-          is_rt
+          favorite_count,
+          retweet_count,
+          language
         ) VALUES (
+          %s,
           %s,
           %s,
           %s,
@@ -110,8 +113,24 @@ def insert_tweets(tweets):
     cur = conn.cursor()
     import json
     for tweet in tweets:
+        print json.dumps(dir(tweet),indent=4)
+        print tweet.user.id
         lat, long = extract_point(tweet.geo)
-        """
+        for hashtag in tweet.hashtags:
+            insert_hashtag(hashtag)
+        print 'formatted tweet:'
+        print sql_tweet_insert % (
+                tweet.id,
+                tweet.text,
+                tweet.created_at,
+                lat,
+                long,
+                tweet.user.id,
+                tweet.user.screen_name,
+                tweet.favorite_count,
+                tweet.retweet_count,
+                tweet.lang,
+            )
 
         cur.execute(
             sql_tweet_insert,
@@ -121,37 +140,19 @@ def insert_tweets(tweets):
                 tweet.created_at,
                 lat,
                 long,
-                tweet.user_id,
-                tweet.screen_name,
-                tweet.hashtags, # maybe put this in a tweet_hashtag table
+                tweet.user.id,
+                tweet.user.screen_name,
                 tweet.favorite_count,
-                tweet.current_user_retweet,
-                tweet.in_reply_to_screen_name,
-                tweet.in_reply_to_status_id,
-                tweet.in_reply_to_user_id,
-                tweet.lang,
-                tweet.user_mentions,
-                tweet.retweeted,
                 tweet.retweet_count,
-                tweet.retweeted_status,
-                tweet.quoted_status,
-                tweet.quoted_status_id,
-                tweet.quoted_status_id_str
+                tweet.lang,
             )
         )
-        """
-        #print json.dumps(dir(tweet), indent=4)
-        #print tweet
-        print '\n'
-        print tweet.text
-        print tweet.hashtags
-        print tweet.retweeted
-        print tweet.retweet_count
-        print tweet.favorite_count
+    conn.commit()
 
-def insert_hashtag():
-    # TODO
+
+def insert_hashtag(hashtag):
     pass
+
 
 def get_user(handle):
     return api.GetUser(screen_name=handle)
