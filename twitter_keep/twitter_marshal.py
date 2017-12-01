@@ -5,68 +5,13 @@ Github: github.com/zricethezav/twitter_keep
 Description: download and marshal tweets into postgres
 """
 
-# fuck it, just use sqlalchemy https://www.pythoncentral.io/introductory-tutorial-python-sqlalchemy/
 import twitter
 import click
 import settings
+import models
 import psycopg2
-
-logger = settings.logger
-
-sql_user_insert = """
-        INSERT INTO users(
-          user_id,
-          screen_name,
-          profile_image_url,
-          location,
-          url,
-          description,
-          created_at,
-          followers_count,
-          friends_count,
-          statuses_count,
-          time_zone,
-          last_update
-        ) VALUES (
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s
-        ) ON CONFLICT DO NOTHING;"""
-
-sql_tweet_insert = """
-        INSERT INTO tweets(
-          tweet_id,
-          text,
-          created_at,
-          lat,
-          long,
-          user_id,
-          screen_name,
-          favorite_count,
-          retweet_count,
-          language
-        ) VALUES (
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s,
-          %s
-        );"""
-
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
 
 api = twitter.Api(consumer_key=settings.TWITTER_CONSUMER_KEY,
                   consumer_secret=settings.TWITTER_CONSUMER_SECRET,
@@ -74,31 +19,31 @@ api = twitter.Api(consumer_key=settings.TWITTER_CONSUMER_KEY,
                   access_token_secret=settings.TWITTER_ACCESS_SECRET,
                   debugHTTP=False)
 
-conn = psycopg2.connect("dbname='twitter' "
-                        "user='vagrant' "
-                        "host='localhost' "
-                        "password='1securePassword'")
+meta = models.Base.metadata
 
+db_conn = models.db_connect()
+Session = sessionmaker(bind=db_conn)
+session = Session()
 
 def insert_user(user):
-    cur = conn.cursor()
-    cur.execute(sql_user_insert,
-                    (
-                        user.id,
-                        user.screen_name,
-                        user.profile_image_url,
-                        user.location,
-                        user.url,
-                        user.description,
-                        user.created_at,
-                        user.followers_count,
-                        user.friends_count,
-                        user.statuses_count,
-                        user.time_zone,
-                        'today'
-                    )
-                )
-    conn.commit()
+    users_table = meta.tables['users']
+    print '\n\n\n\n\n'
+    clause = users_table.insert().values(
+        user_id=user.id,
+        screen_name=user.screen_name,
+        profile_image_url=user.profile_image_url,
+        location=user.location,
+        url=user.url,
+        description=user.description,
+        created_at=user.created_at,
+        followers_count=user.followers_count,
+        friends_count=user.friends_count,
+        statuses_count=user.statuses_count,
+        time_zone=user.time_zone,
+        last_update='today'
+    )
+    result = db_conn.execute(clause)
+    print result
 
 
 def extract_point(geo):
@@ -110,48 +55,29 @@ def extract_point(geo):
 
 
 def insert_tweets(tweets):
-    cur = conn.cursor()
-    import json
+
     for tweet in tweets:
-        print json.dumps(dir(tweet),indent=4)
-        print tweet.user.id
         lat, long = extract_point(tweet.geo)
-        for hashtag in tweet.hashtags:
-            insert_hashtag(hashtag)
-        print 'formatted tweet:'
-        print sql_tweet_insert % (
-                tweet.id,
-                tweet.text,
-                tweet.created_at,
-                lat,
-                long,
-                tweet.user.id,
-                tweet.user.screen_name,
-                tweet.favorite_count,
-                tweet.retweet_count,
-                tweet.lang,
-            )
-
-        cur.execute(
-            sql_tweet_insert,
-            (
-                tweet.id,
-                tweet.text,
-                tweet.created_at,
-                lat,
-                long,
-                tweet.user.id,
-                tweet.user.screen_name,
-                tweet.favorite_count,
-                tweet.retweet_count,
-                tweet.lang,
-            )
+        t = models.Tweet(
+            tweet_id=tweet.id,
+            text=tweet.text,
+            created_at=tweet.created_at,
+            geo_lat=lat,
+            geo_long=long,
+            user_id=tweet.user.id,
+            screen_name=tweet.user.screen_name,
+            retweet_count=tweet.retweet_count,
+            favorite_count=tweet.favorite_count
         )
-    conn.commit()
 
-
-def insert_hashtag(hashtag):
-    pass
+        for hashtag in tweet.hashtags:
+            association = models.TweetHashtagAssociation()
+            association.hashtag = models.Hashtag(
+                hashtag_text=hashtag.text)
+            t.hashtags.append(association)
+        print '\n\n\n NOOOOO'
+        session.add(t)
+        session.commit()
 
 
 def get_user(handle):
