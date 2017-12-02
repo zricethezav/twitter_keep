@@ -45,6 +45,7 @@ class Tweet(Base):
     screen_name = Column(String, nullable=False)
     favorite_count = Column(Integer, nullable=False)
     retweet_count = Column(Integer, nullable=False)
+    keyword = Column(String, nullable=True)
     hashtags = relationship('TweetHashtagAssociation',
                             back_populates='tweet')
 
@@ -62,7 +63,6 @@ class User(Base):
     friends_count = Column(Integer, nullable=False)
     statuses_count = Column(Integer, nullable=False)
     time_zone = Column(String, nullable=False)
-    last_update = Column(DateTime, nullable=False)
 
 
 class Hashtag(Base):
@@ -73,6 +73,7 @@ class Hashtag(Base):
 
 
 if __name__ == "__main__":
-    create_tables(db_connect())
+    # create_tables(db_connect())
+    print dir(User)
 
 
