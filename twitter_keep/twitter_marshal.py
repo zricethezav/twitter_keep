@@ -16,7 +16,7 @@ api = twitter.Api(consumer_key=settings.TWITTER_CONSUMER_KEY,
                   debugHTTP=False)
 
 
-def twitter_search(keyword, start_date=None, end_date=None):
+def twitter_search(keyword, options=None):
     """
     Twitter search util, this little guy will auto adjust
     the ranges for your search terms.
@@ -25,17 +25,24 @@ def twitter_search(keyword, start_date=None, end_date=None):
     these dates with the start and end of the results from the initial twitter
     search call as to how best to adjust the ranges/query
     """
-    print 'searching keywords: %s', keyword
-    import json
-    max_id = 0
-    until_str = '2015-07-19'
+    search_tweets = []
+    last_tid = None
+    while True:
+        if not search_tweets:
+            # initial query
+            query = "q=%s&count=100&result_type=mixed" % keyword
+        else:
+            # query with until id limit to prevent duplicate downloads
+            query = "q=%s&count=100&max_id=%s&result_type=mixed" % (
+                    keyword, last_tid)
 
-    for i in xrange(2):
-        results = api.GetSearch(raw_query="q=%s&count=100" % keyword)
+        results = api.GetSearch(raw_query=query)
+
         for r in results:
             print r.created_at
-            print json.dumps(dir(r), indent=4)
-        print json.dumps(dir(results), indent=4)
+        last_tid = results[-1].id
+
+        # maxdate TODO braek logic
 
 
 def get_user(handle):
@@ -52,9 +59,9 @@ def get_tweets(handle, start_date, end_date):
 @click.option('--start_date', default=None, help='start date of tweets')
 @click.option('--end_date', default=None, help='end date of tweets')
 def main(keyword, handle, start_date, end_date):
-    #user = get_user(handle)
-    #tweets = get_tweets(handle, start_date, end_date)
-
+    # user = get_user(handle)
+    # tweets = get_tweets(handle, start_date, end_date)
+    #
     # update user table
     # insert_user(user)
     # insert_tweets(tweets)

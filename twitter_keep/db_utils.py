@@ -6,6 +6,7 @@ db_conn = models.db_connect()
 Session = sessionmaker(bind=db_conn)
 session = Session()
 
+
 def insert_user(user):
     user = models.User(
         user_id=user.id,
