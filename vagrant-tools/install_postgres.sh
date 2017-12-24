@@ -93,21 +93,23 @@ create_twitter_tables() {
     log "Creating Twitter Tables"
 
     # tweet table
+    sudo -u postgres -H -- psql -d twitter -c "DROP TABLE tweets_users;"
+    sudo -u postgres -H -- psql -d twitter -c "DROP TABLE tweets_hashtags;"
     sudo -u postgres -H -- psql -d twitter -c "DROP TABLE tweets;"
     sudo -u postgres -H -- psql -d twitter -c "DROP TABLE users;"
-    sudo -u postgres -H -- psql -d twitter -c "DROP TABLE tweets_users;"
+    sudo -u postgres -H -- psql -d twitter -c "DROP TABLE hashtags;"
 
     sudo -u postgres -H -- psql -d twitter -c "CREATE TABLE tweets(
         tweet_id bigint PRIMARY KEY,
-        tweet_text varchar(230) NOT NULL,
+        text varchar(230) NOT NULL,
         created_at timestamp NOT NULL,
-        geo_lat decimal(10,5) DEFAULT NULL,
-        geo_long decimal(10,5) DEFAULT NULL,
+        lat decimal(10,5) DEFAULT NULL,
+        long decimal(10,5) DEFAULT NULL,
         user_id bigint NOT NULL,
         screen_name char(20) NOT NULL,
-        name varchar(20) DEFAULT NULL,
-        profile_image_url varchar(200) DEFAULT NULL,
-        is_rt smallint NOT NULL);"
+        favorite_count int NOT NULL,
+        retweet_count int NOT NULL,
+        language varchar(20) NOT NULL);"
     sudo -u postgres -H -- psql -d twitter -c "GRANT ALL PRIVILEGES ON TABLE tweets TO $POSTGRES_USER;"
 
     # user table
@@ -130,9 +132,24 @@ create_twitter_tables() {
 
     # tweet_user table
     sudo -u postgres -H -- psql -d twitter -c "CREATE TABLE IF NOT EXISTS tweets_users(
-        user_id bigint REFERENCES users,
+        user_id bigint REFERENCES users (user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+        tweet_id bigint REFERENCES tweets (tweet_id) ON UPDATE CASCADE,
+        constraint tweet_user_id PRIMARY KEY (user_id, tweet_id)
+    );"
+    sudo -u postgres -H -- psql -d twitter -c "GRANT ALL PRIVILEGES ON TABLE tweets_users TO $POSTGRES_USER;"
+
+
+    # hashtag table
+    sudo -u postgres -H -- psql -d twitter -c "CREATE TABLE IF NOT EXISTS hashtags(
+        hashtag varchar(120) PRIMARY KEY
+    );"
+    sudo -u postgres -H -- psql -d twitter -c "GRANT ALL PRIVILEGES ON TABLE hashtags TO $POSTGRES_USER;"
+
+    # tweet_hashtag table
+    sudo -u postgres -H -- psql -d twitter -c "CREATE TABLE IF NOT EXISTS tweets_hashtags(
+        hashtag varchar(120) REFERENCES hashtags,
         tweet_id bigint REFERENCES tweets,
-        constraint id PRIMARY KEY (user_id, tweet_id)
+        constraint tweet_hashtag_id PRIMARY KEY (hashtag, tweet_id)
     );"
     sudo -u postgres -H -- psql -d twitter -c "GRANT ALL PRIVILEGES ON TABLE tweets_users TO $POSTGRES_USER;"
 }
